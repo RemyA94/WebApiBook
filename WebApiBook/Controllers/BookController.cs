@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using WebApiBook.Entities;
 
 namespace WebApiBook.Context
@@ -13,65 +14,101 @@ namespace WebApiBook.Context
     {
         private readonly ApplicationDBContext context;
 
-        public BookController(ApplicationDBContext context)
+        public BookController(ApplicationDBContext _context)
         {
-            this.context = context;
+            context = _context;
         }
-
 
         [HttpGet]
-        public ActionResult<List<Book>> Get()
+        public async Task<ActionResult<List<Book>>> Get()
         {
-            var libros = context.Book.Include(x => x.Author).ToList();
-            return libros;
-        }
-
-        [HttpGet("{id}", Name = "ObtenerLibro")]
-        public ActionResult<Book> Get(int id)
-        {
-            var libro = context.Book.Include(x => x.Author).FirstOrDefault(x => x.Id == id);
-
-            if (libro == null)
+            try
+            {
+                return await context.Book
+                                    .Include(x => x.Author).ToListAsync();
+            }
+            catch (Exception ex)
             {
                 return NotFound();
             }
-            return libro;
+        }
+
+        [HttpGet("{id}", Name = "ObtenerLibro")]
+        public async Task<ActionResult<Book>> Get(int id)
+        {
+            try
+            {
+                var libro = await context.Book
+                                         .Include(x => x.Author)
+                                         .Where(x => x.Id == id).FirstOrDefaultAsync();
+
+                if (libro == null)
+                {
+                    return NotFound();
+                }
+                return libro;
+            }
+            catch (Exception ex)
+            {
+                return NotFound();
+            }
         }
 
         [HttpPost]
-        public ActionResult Post([FromBody] Book libro)
+        public async Task<ActionResult> Post([FromBody] Book libro)
         {
-            context.Book.Add(libro);
-            context.SaveChanges();
-            return new CreatedAtRouteResult("ObtenerLibro", new { id = libro.Id }, libro);
+            try
+            {
+                await context.Book.AddAsync(libro);
+                await context.SaveChangesAsync();
+                return new CreatedAtRouteResult("ObtenerLibro", new { id = libro.Id }, libro);
+            }
+            catch (Exception ex)
+            {
+                return NotFound();
+            }
         }
 
         [HttpPut("{id}")]
-        public ActionResult Put([FromBody] Book libro, int id)
+        public async Task<ActionResult> Put([FromBody] Book libro, int id)
         {
             if (id != libro.Id)
             {
                 return BadRequest();
             }
-            context.Entry(libro).State = EntityState.Modified;
-            context.SaveChanges();
-            return Ok();
-        }
-
-        [HttpDelete("{id}")]
-        public ActionResult<Book> Delete(int id)
-        {
-            var libro = context.Book.FirstOrDefault(x => x.Id == id);
-
-            if (libro == null)
+            try
+            {
+                context.Entry(libro).State = EntityState.Modified;
+                await context.SaveChangesAsync();
+                return Ok();
+            }
+            catch (Exception)
             {
                 return NotFound();
             }
-            context.Book.Remove(libro);
-            context.SaveChanges();
-            return libro;
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult<Book>> Delete(int id)
+        {
+            try
+            {
+                var libro = await context.Book
+                                         .Where(x => x.Id == id).FirstOrDefaultAsync();
+
+                if (libro == null)
+                {
+                    return NotFound();
+                }
+                context.Book.Remove(libro);
+                await context.SaveChangesAsync();
+                return libro;
+            }
+            catch (Exception ex)
+            {
+                return NotFound();
+            }
         }
 
     }
 }
-   
